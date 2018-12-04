@@ -28,38 +28,64 @@ function killTask($tid)
     });
 }
 
+function waitForRead($socket)
+{
+    return new SystemCall(function (Task $task, Scheduler $scheduler) use ($socket) {
+        $scheduler->waitForRead($socket, $task);
+    });
+}
+
+function waitForWrite($socket)
+{
+    return new SystemCall(function (Task $task, Scheduler $scheduler) use ($socket) {
+        $scheduler->waitForWrite($socket, $task);
+    });
+}
+
+function server($port)
+{
+    echo "Starting server at port $port...\n";
+
+    $socket = @stream_socket_server("tcp://localhost:$port", $errNo, $errStr);
+
+    if (! $socket) {
+        throw new Exception($errStr, $errNo);
+    }
+
+    while (true) {
+        yield waitForRead($socket);
+    }
+
+    $clientSocket = stream_socket_accept($socket, 0);
+    yield newTask(handleClient($clientSocket));
+}
+
+function handleClient($socket)
+{
+    yield waitForRead($socket);
+    $data = fread($socket, 8192);
+
+    $msg = "Received following request: \n\n $data";
+    $msgLength = strlen($msg);
+
+    $response = <<<RES
+HTTP/1.1 200 OK\r
+Content-Type: text/plain\r
+Content-Length: $msgLength\r
+Connection: close\r
+\r
+$msg
+RES;
+
+    yield waitForWrite($socket);
+
+    fwrite($socket, $response);
+
+    fclose($socket);
+}
+
 
 // Run
-
-function childTask()
-{
-    $tid = (yield getTaskId());
-
-    $i = 0;
-    while (true) {
-        if (++$i > 10) {
-            break;
-        }
-        echo "Child task $tid still alive! \n";
-        yield;
-    }
-}
-
-function task()
-{
-    $tid = (yield getTaskId());
-    $childTid = (yield newTask(childTask()));
-
-    for ($i = 1; $i <=6; $i++) {
-        echo "Parent task $tid iteration $i. \n";
-        yield;
-
-        if ($i === 3) {
-            yield killTask($childTid);
-        }
-    }
-}
-
 $scheduler = new Scheduler;
-$scheduler->newTask(task());
+$scheduler->newTask(server(8000));
 $scheduler->run();
