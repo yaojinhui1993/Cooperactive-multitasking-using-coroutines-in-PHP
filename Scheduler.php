@@ -1,6 +1,7 @@
 <?php
 
-require './Task.php';
+require_once './Task.php';
+require_once './SystemCall.php';
 
 class Scheduler
 {
@@ -32,7 +33,12 @@ class Scheduler
     {
         while (! $this->taskQueue->isEmpty()) {
             $task = $this->taskQueue->dequeue();
-            $task->run();
+            $retValue = $task->run();
+
+            if ($retValue instanceof SystemCall) {
+                $retValue($task, $this);
+                continue;
+            }
 
             if ($task->isFinished()) {
                 unset($this->taskMap[$task->getTaskId()]);

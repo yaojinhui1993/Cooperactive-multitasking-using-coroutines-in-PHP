@@ -1,27 +1,33 @@
 <?php
 
-require './Scheduler.php';
+require_once './Scheduler.php';
+require_once './Task.php';
+require_once './SystemCall.php';
 
-function task1()
+function getTaskId()
 {
-    for ($i = 1; $i <=10; ++$i) {
-        echo "This is task 1 iteration {$i}. \n";
-        yield;
-    }
+    return new SystemCall(function (Task $task, Scheduler $scheduler) {
+        $task->setSendValue($task->getTaskId());
+        $scheduler->schedule($task);
+    });
 }
 
-
-function task2()
+function task($max)
 {
-    for ($i = 1; $i <=5; ++$i) {
-        echo "This is task 2 iteration {$i}. \n";
+    // var_dump(1);
+    $tid = (yield getTaskId());
+    // var_dump("$tid: 2");
+
+    for ($i = 1; $i <= $max; ++$i) {
+        echo "This is task $tid iteration $i. \n";
         yield;
+        // var_dump("$tid - $i - 3");
     }
 }
 
 $schedular = new Scheduler();
 
-$schedular->newTask(task1());
-$schedular->newTask(task2());
+$schedular->newTask(task(10));
+$schedular->newTask(task(5));
 
 $schedular->run();

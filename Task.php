@@ -33,6 +33,7 @@ class Task
 
         $retValue = $this->coroutine->send($this->sendValue);
         $this->sendValue = null;
+
         return $retValue;
     }
 
