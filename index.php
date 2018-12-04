@@ -12,22 +12,54 @@ function getTaskId()
     });
 }
 
-function task($max)
+function newTask(Generator $coroutine)
 {
-    // var_dump(1);
-    $tid = (yield getTaskId());
-    // var_dump("$tid: 2");
+    return new SystemCall(function (Task $task, Scheduler $scheduler) use ($coroutine) {
+        $task->setSendValue($scheduler->newTask($coroutine));
+        $scheduler->schedule($task);
+    });
+}
 
-    for ($i = 1; $i <= $max; ++$i) {
-        echo "This is task $tid iteration $i. \n";
+function killTask($tid)
+{
+    return new SystemCall(function (Task $task, Scheduler $scheduler) use ($tid) {
+        $task->setSendValue($scheduler->killTask($tid));
+        $scheduler->schedule($task);
+    });
+}
+
+
+// Run
+
+function childTask()
+{
+    $tid = (yield getTaskId());
+
+    $i = 0;
+    while (true) {
+        if (++$i > 10) {
+            break;
+        }
+        echo "Child task $tid still alive! \n";
         yield;
-        // var_dump("$tid - $i - 3");
     }
 }
 
-$schedular = new Scheduler();
+function task()
+{
+    $tid = (yield getTaskId());
+    $childTid = (yield newTask(childTask()));
 
-$schedular->newTask(task(10));
-$schedular->newTask(task(5));
+    for ($i = 1; $i <=6; $i++) {
+        echo "Parent task $tid iteration $i. \n";
+        yield;
 
-$schedular->run();
+        if ($i === 3) {
+            yield killTask($childTid);
+        }
+    }
+}
+
+$scheduler = new Scheduler;
+$scheduler->newTask(task());
+$scheduler->run();

@@ -47,4 +47,20 @@ class Scheduler
             }
         }
     }
+
+    public function killTask($tid)
+    {
+        if (! isset($this->taskMap[$tid])) {
+            return false;
+        }
+
+        foreach ($this->taskQueue as $i => $task) {
+            if ($task->getTaskId() === $tid) {
+                unset($this->taskQueue[$i]);
+                break;
+            }
+        }
+
+        return true;
+    }
 }
